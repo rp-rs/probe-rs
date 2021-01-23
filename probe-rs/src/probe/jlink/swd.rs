@@ -490,28 +490,86 @@ impl RawSwdIo for JLink {
     fn swd_line_reset(&mut self) -> Result<(), DebugProbeError> {
         log::debug!("Performing line reset!");
 
-        const NUM_RESET_BITS: usize = 50;
+        #[rustfmt::skip]
+        let dormant_to_swd: &[u8] = &[
+            // At least 8 SWCLK cycles with SWDIO high
+            0xff,
+            
+            // Selection alert sequence
+            0x92, 0xf3, 0x09, 0x62, 0x95, 0x2d, 0x85, 0x86, 0xe9, 0xaf, 0xdd, 0xe3, 0xa2, 0x0e,
+            0xbc, 0x19,
 
-        let mut io_sequence = IoSequence::new();
-
-        io_sequence.add_output_sequence(&[true; NUM_RESET_BITS]);
-
-        io_sequence.extend(&build_swd_transfer(
-            PortType::DebugPort,
-            TransferType::Read,
-            0,
-        ));
+            // 4 SWCLK cycles with SWDIO low ...
+            // + SWD activation code 0x1a ...
+            // + at least 8 SWCLK cycles with SWDIO high
+            0xa0, // ((0x00)      & GENMASK(3, 0)) | ((0x1a << 4) & GENMASK(7, 4))
+            0xf1, // ((0x1a >> 4) & GENMASK(3, 0)) | ((0xff << 4) & GENMASK(7, 4))
+            0xff,
+            
+            // At least 50 SWCLK cycles with SWDIO high
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            
+            // At least 2 idle (low) cycles
+            0x00,
+        ];
 
         let mut result = Ok(());
 
         for _ in 0..2 {
+            let mut io_sequence = IoSequence::new();
+            for &b in dormant_to_swd {
+                for bit in 0..8 {
+                    io_sequence.add_output((b >> bit) & 1 != 0)
+                }
+            }
+
+            let result_sequence = self.swd_io(
+                io_sequence.direction_bits().to_owned(),
+                io_sequence.io_bits().to_owned(),
+            )?;
+
+            const NUM_RESET_BITS: usize = 50;
+            let mut io_sequence = IoSequence::new();
+            io_sequence.add_output_sequence(&[true; NUM_RESET_BITS]);
+
+            io_sequence.extend(&build_swd_transfer(
+                PortType::DebugPort,
+                TransferType::Write(0x01002927),
+                0xC,
+            ));
+
+            let result_sequence = self.swd_io(
+                io_sequence.direction_bits().to_owned(),
+                io_sequence.io_bits().to_owned(),
+            )?;
+
+            // working
+            // wtf:
+            // 11111111 01001001 11001111 10010000
+            // 01000110 10101001 10110100 10100001
+            // 01100001 10010111 11110101 10111011
+            // 11000111 01000101 01110000 00111101
+            // 10011000 00000101 10001111
+            // targetsel: 10011001 11111 11100100 10010100 00000000 10000000 0
+            // idcode:    10100101 turn blabla
+
+            // mine
+            // targetsel: 10011001 11111 11100100 10010100 00000000 10000000 0
+            // idcode  00 10100101
+            let mut io_sequence = IoSequence::new();
+            io_sequence.extend(&build_swd_transfer(
+                PortType::DebugPort,
+                TransferType::Read,
+                0,
+            ));
+
             let result_sequence = self.swd_io(
                 io_sequence.direction_bits().to_owned(),
                 io_sequence.io_bits().to_owned(),
             )?;
 
             // Parse the response after the reset bits.
-            match parse_swd_response(&result_sequence[NUM_RESET_BITS..], TransferDirection::Read) {
+            match parse_swd_response(&result_sequence, TransferDirection::Read) {
                 Ok(_) => {
                     // Line reset was succesful
                     return Ok(());

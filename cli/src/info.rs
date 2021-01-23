@@ -14,6 +14,19 @@ use anyhow::Result;
 
 pub(crate) fn show_info_of_device(shared_options: &SharedOptions) -> Result<()> {
     let mut probe = open_probe(shared_options.n)?;
+
+    if let Some(speed) = shared_options.speed {
+        let actual_speed = probe.set_speed(speed)?;
+
+        if actual_speed != speed {
+            log::warn!(
+                "Protocol speed {} kHz not supported, actual speed is {} kHz",
+                speed,
+                actual_speed
+            );
+        }
+    }
+    
     probe.attach_to_unspecified()?;
 
     /*
