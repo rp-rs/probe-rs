@@ -167,6 +167,20 @@ impl DebugCli {
         });
 
         cli.add_command(Command {
+            name: "writereg",
+            help_text: "Write a 32bit value to a register",
+
+            function: |cli_data, args| {
+                let reg: u16 = get_int_argument(args, 0)?;
+                let value = get_int_argument(args, 1)?;
+
+                cli_data.core.write_core_reg(reg.into(), value)?;
+
+                Ok(CliState::Continue)
+            },
+        });
+
+        cli.add_command(Command {
             name: "break",
             help_text: "Set a breakpoint at a specifc address",
 
