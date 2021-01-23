@@ -1,0 +1,42 @@
+# TODO: Flash XIP has noalloc/nocache aliases, add them?
+# TODO: ROM at 0x00000000 - 0x00004000? probe-rs doesn't seem to have support for ROM regions
+# TODO: flash algo (fun!)
+
+name: RP2040
+core: M0  # TODO: M0+?
+variants:
+  - name: RP2040
+    memory_map:
+      - Ram: # Banks 0-3 striped
+          range:
+            start: 0x20000000
+            end:   0x20040000
+      - Ram: # Bank 4
+          range:
+            start: 0x20040000
+            end:   0x20041000
+      - Ram: # Bank 5
+          range:
+            start: 0x20041000
+            end:   0x20042000
+      - Ram: # Bank 0 non-striped alias
+          range:
+            start: 0x21000000
+            end:   0x21010000
+      - Ram: # Bank 1 non-striped alias
+          range:
+            start: 0x21010000
+            end:   0x21020000
+      - Ram: # Bank 2 non-striped alias
+          range:
+            start: 0x21020000
+            end:   0x21030000
+      - Ram: # Bank 3 non-striped alias
+          range:
+            start: 0x21030000
+            end:   0x21040000
+      - Nvm: # Flash XIP
+          range:
+            start: 0x10000000
+            end:   0x11000000
+          is_boot_memory: true

@@ -258,7 +258,10 @@ fn extract_memory_map(chip: &serde_yaml::Value) -> Vec<proc_macro2::TokenStream>
                     let range = region.get("range").unwrap();
                     let start = range.get("start").unwrap().as_u64().unwrap() as u32;
                     let end = range.get("end").unwrap().as_u64().unwrap() as u32;
-                    let is_boot_memory = region.get("is_boot_memory").unwrap().as_bool().unwrap();
+                    let is_boot_memory = region
+                        .get("is_boot_memory")
+                        .map(|v| v.as_bool().unwrap())
+                        .unwrap_or(false);
 
                     quote::quote! {
                         MemoryRegion::Ram(RamRegion {
