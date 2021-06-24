@@ -475,24 +475,20 @@ impl DebugProbe for CmsisDap {
 
         self.configure_swd(swd::configure::ConfigureRequest {})?;
 
-        // SWJ-DP defaults to JTAG operation on powerup reset
-        // Switching from JTAG to SWD operation
-
-        // ~50 SWCLKTCK
+        // dormant-to-swd
         self.send_swj_sequences(SequenceRequest::new(&[
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0x92, 0xf3, 0x09, 0x62, 0x95, 0x2d, 0x85, 0x86, 0xe9, 0xaf, 0xdd, 0xe3, 0xa2,
+            0x0e, 0xbc, 0x19, 0xa0, 0xf1, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
         ])?)?;
 
-        // 16-bit JTAG-to-SWD select sequence
-        self.send_swj_sequences(SequenceRequest::new(&[0x9e, 0xe7])?)?;
+        // TARGETSEL Core 0
+        self.send_swj_sequences(SequenceRequest::new(&[0x99, 0xff, 0x24, 0x05, 0x20, 0x00])?)?;
 
-        // ~50 SWCLKTCK
-        self.send_swj_sequences(SequenceRequest::new(&[
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        ])?)?;
+        // TARGETSEL Core 1
+        //self.send_swj_sequences(SequenceRequest::new(&[0x99, 0xff, 0x24, 0x05, 0x20, 0x22])?)?;
 
-        // returning to low state? 2 idle cycles?
-        self.send_swj_sequences(SequenceRequest::new(&[0x00])?)?;
+        // TARGETSEL Rescue DP
+        //self.send_swj_sequences(SequenceRequest::new(&[0x99, 0xff, 0x24, 0x05, 0x20, 0x3e])?)?;
 
         // On selecting SWD operation, the SWD interface returns to its reset state.
 
